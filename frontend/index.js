@@ -44,15 +44,19 @@ app.get("/file", (req, res) => {
 // ---------------------------------------------------------------------------
 // VULNERABILITY: Command Injection — code scanning alert
 // ---------------------------------------------------------------------------
-const { exec } = require("child_process");
+const { execFile } = require("child_process");
 
 app.get("/ping", (req, res) => {
   const host = req.query.host;
   if (!host) {
     return res.status(400).send("Missing host parameter");
   }
-  // BAD: user input passed directly to shell command
-  exec(`ping -c 2 ${host}`, (error, stdout, stderr) => {
+  // Allow only simple hostname / IPv4-like characters to reduce abuse.
+  if (!/^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(host)) {
+    return res.status(400).send("Invalid host parameter");
+  }
+  // SAFE: do not invoke a shell; pass command and args separately
+  execFile("ping", ["-c", "2", host], (error, stdout, stderr) => {
     if (error) {
       return res.status(500).send(stderr);
     }
